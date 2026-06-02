@@ -1,0 +1,31 @@
+services:
+  onduty:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      # Verwijst naar jullie BESTAANDE MySQL/MariaDB. Vul in via .env.
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_TABLE: ${DB_TABLE:-period_config}
+      # Rooster als JSON (aanbevolen in Portainer, zodat persoonsgegevens niet
+      # in de repo/image staan). Bv: [{"name":"Alice","phone":"0600000001"}]
+      ROSTER: ${ROSTER:-}
+      ROTATION_ANCHOR_DATE: ${ROTATION_ANCHOR_DATE:-2026-01-05}
+      ROTATION_START_TIME: ${ROTATION_START_TIME:-12:00:00}
+      ROTATION_END_TIME: ${ROTATION_END_TIME:-11:59:00}
+      ROTATION_PERIOD_VALUE: ${ROTATION_PERIOD_VALUE:-0}
+      ROTATION_WEEKS_AHEAD: ${ROTATION_WEEKS_AHEAD:-12}
+      CRON_SCHEDULE: ${CRON_SCHEDULE:-5 0 * * 1}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
