@@ -1,4 +1,4 @@
-# On Duty Helper
+# RotaCall
 
 A small web app that shows **who is on call this week** and keeps a weekly
 rotation in a MySQL/MariaDB table. Your phone system (e.g. 3CX) can read the

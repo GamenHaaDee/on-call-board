@@ -1,4 +1,4 @@
--- On Duty Helper — databasetabel
+-- RotaCall — databasetabel
 -- MySQL / MariaDB. De app voegt automatisch wekelijkse rijen toe en leest
 -- deze tabel; je telefoonsysteem (bv. 3CX) kan dezelfde tabel uitlezen voor
 -- de doorschakelbestemming.
