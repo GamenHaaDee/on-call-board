@@ -22,7 +22,9 @@ import {
   getSettings,
   isConfigured,
   isDbFromEnv,
+  loadSettings,
   saveSettings,
+  settingsStatus,
   type MailSettings,
   type RotationSettings,
   type Settings,
@@ -41,7 +43,21 @@ import {
 
 // Beschermt beheer-acties met een token (indien ingesteld).
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  // Een onbereikbare database mag de beveiliging niet stilzwijgend uitzetten:
+  // is het token daar niet uit te lezen, dan gaat beheer op slot. Met
+  // ADMIN_TOKEN in de omgeving blijft beheer in dat geval wél werken.
+  const status = settingsStatus();
+  if (!status.loaded) {
+    return res.status(503).json({ error: "Instellingen zijn nog niet geladen" });
+  }
   const token = getAdminToken();
+  if (status.fromFile && !token) {
+    return res.status(503).json({
+      error:
+        "De instellingen konden niet uit de database gelezen worden, dus het " +
+        "admin-token is onbekend. Herstel de database, of zet ADMIN_TOKEN in de omgeving.",
+    });
+  }
   if (token && req.header("x-admin-token") !== token) {
     return res.status(401).json({ error: "Niet geautoriseerd" });
   }
@@ -179,6 +195,8 @@ function publicSettings(settings: Settings) {
     mail: { ...mail, passwordSet: Boolean(mailPassword) },
     adminTokenSet: Boolean(settings.adminToken),
     dbFromEnv: isDbFromEnv(),
+    // false = opgeslagen in de database, true = teruggevallen op het bestand.
+    settingsInFile: settingsStatus().fromFile,
     savedAt: settings.savedAt,
   };
 }
@@ -293,7 +311,9 @@ export function createApiRouter(): express.Router {
         fail(`Verbinden met de database mislukt: ${(err as Error).message}`);
       });
 
-      saveSettings({
+      // Eerst verbinden met de gekozen database: daar gaan de instellingen in.
+      await reopenDb();
+      await saveSettings({
         roster,
         rotation,
         database,
@@ -301,8 +321,6 @@ export function createApiRouter(): express.Router {
         timezone: parseTimezone(body.timezone),
         adminToken: String(body.adminToken ?? "").trim(),
       });
-
-      await reopenDb();
       // Eerst een eventuele back-up terugzetten, daarna de rotatie aanvullen:
       // zo blijven herstelde (handmatig aangepaste) weken staan.
       const imported = assignments.length > 0 ? await importAssignments(assignments) : 0;
@@ -355,8 +373,13 @@ export function createApiRouter(): express.Router {
         databaseChanged = JSON.stringify(database) !== JSON.stringify(current.database);
       }
 
-      const saved = saveSettings(patch);
-      if (databaseChanged) await reopenDb();
+      if (databaseChanged) {
+        // Naar de nieuwe database, en de instellingen daar neerzetten.
+        await saveSettings({ database: patch.database });
+        await reopenDb();
+        await loadSettings();
+      }
+      const saved = await saveSettings(patch);
       // Rooster of rotatie gewijzigd? Dan meteen de ontbrekende weken bijvullen.
       await ensureAssignments().catch((err) => console.error("[settings] aanvullen:", err));
 
@@ -488,7 +511,7 @@ export function createApiRouter(): express.Router {
         deleted = await deleteAllAssignments();
       }
 
-      deleteSettings();
+      await deleteSettings();
       await reopenDb().catch(() => {
         // Zonder instellingen kan verbinden mislukken; dat mag hier.
       });
@@ -528,7 +551,17 @@ export function createApp({ serveStatic = true }: AppOptions = {}): express.Expr
     const staticDir = path.resolve(config.staticDir);
     if (existsSync(staticDir)) {
       app.use(express.static(staticDir));
-      app.get("*", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
+
+      // De frontend regelt zijn eigen routes, dus onbekende paden krijgen de
+      // pagina terug. Een pad met een bestandsextensie (/logo.svg, /iets.js)
+      // is echter een bestand dat er niet is: daar hoort een 404 bij, anders
+      // krijgt de browser HTML waar hij een afbeelding verwacht.
+      app.get("*", (req, res) => {
+        if (path.extname(req.path)) {
+          return res.status(404).json({ error: "Niet gevonden" });
+        }
+        res.sendFile(path.join(staticDir, "index.html"));
+      });
       console.log(`[server] Frontend geserveerd vanuit ${staticDir}`);
     } else {
       console.warn(
@@ -545,6 +578,10 @@ export function createApp({ serveStatic = true }: AppOptions = {}): express.Expr
  * controle op te versturen dienstmeldingen. Geeft een stop-functie terug.
  */
 export async function startScheduler(): Promise<() => void> {
+  // Zonder instellingen weet de app niets: eerst laden, dan plannen.
+  await loadSettings().catch((err) =>
+    console.error("[settings] laden mislukt:", (err as Error).message)
+  );
   await ensureAssignments().catch((err) => console.error("[cron] init mislukt:", err));
 
   const planning = cron.schedule(config.cronSchedule, () => {

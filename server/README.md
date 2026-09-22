@@ -37,8 +37,22 @@ Bestaande rijen worden nooit overschreven — er komen alleen weken bij.
 
 Bij het eerste gebruik toont de app een **setup-pagina** (database, rooster,
 rotatie, admin-token); daarna is `/settings` de plek om alles te wijzigen,
-inclusief de e-mailmeldingen. Alles landt in `SETUP_FILE` (standaard
-`data/setup.json`, geschreven met rechten 0600 omdat er wachtwoorden in staan).
+inclusief de e-mailmeldingen.
+
+Rooster, rotatie, mail, tijdzone en admin-token staan in de **database**, in de
+tabel `SETTINGS_TABLE` (standaard `rotacall_settings`, één rij per onderdeel met
+JSON als waarde). Die tabel maakt de app zelf aan.
+
+Alleen de **verbindingsgegevens van de database** staan in `SETUP_FILE`
+(standaard `data/setup.json`, rechten 0600): die kunnen niet in de database
+staan waartoe ze de toegang zijn. Bestaande installaties verhuizen bij de eerste
+start automatisch, waarna het bestand alleen die gegevens overhoudt.
+
+Kan de app de tabel niet lezen of aanmaken (database plat, of geen
+`CREATE TABLE`-recht), dan werkt hij door met het bestand en meldt dat in het
+log en in de instellingenpagina. Is het admin-token dan onbekend, dan worden
+beheeracties geweigerd met een 503 in plaats van onbeveiligd door te gaan; met
+`ADMIN_TOKEN` in de omgeving blijft beheer in dat geval werken.
 
 Environment variables (`ROSTER`, `DB_*`, `ROTATION_*`, `SMTP_*`, `ADMIN_TOKEN`)
 gaan per veld altijd vóór; die velden zijn in de UI alleen-lezen. Zie

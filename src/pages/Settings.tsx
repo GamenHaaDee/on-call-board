@@ -541,6 +541,13 @@ const Settings = () => {
       </nav>
 
       <div className="space-y-5">
+        {settings.data?.settingsInFile && (
+          <p className="flex items-start gap-2 rounded-xl border border-warning/50 bg-warning/10 p-3 text-sm text-foreground">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {t("settings_in_file")}
+          </p>
+        )}
+
         {/* Rooster: waar de meeste mensen voor komen, dus eerst en met gewicht. */}
         <Section
           id="roster"

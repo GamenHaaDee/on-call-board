@@ -1,14 +1,16 @@
-import { Phone, AlertTriangle, Loader2, Settings, SlidersHorizontal, Clock } from "lucide-react";
+import { AlertTriangle, CalendarClock, Loader2, Phone, RotateCcw, Settings, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { format, formatDistanceToNowStrict, parseISO } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Avatar from "@/components/Avatar";
+import AppLogo from "@/components/AppLogo";
 import OnCallCard from "@/components/OnCallCard";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useCurrentOnCall, useOnCallSchedule } from "@/data/api";
-import { avatarUrl } from "@/lib/oncall";
 import { useBranding } from "@/lib/branding";
 import { dateLocale } from "@/lib/dateLocale";
-import { format, parseISO, formatDistanceToNowStrict } from "date-fns";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -21,26 +23,21 @@ const Index = () => {
   const isLoading = current.isLoading || schedule.isLoading;
   const isError = current.isError || schedule.isError;
 
-  // Aankomende weken zonder de huidige (die staat al in de hero).
+  // Aankomende weken zonder de huidige (die staat al bovenaan).
   const upcoming = (schedule.data ?? []).filter((e) => e.id !== activeEntry?.id);
+
+  const navLink = "inline-flex h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9";
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            {branding.logoUrl ? (
-              <img
-                src={branding.logoUrl}
-                alt={branding.orgName || t("app_title")}
-                className="h-12 w-12 rounded-2xl object-contain shadow-soft"
-              />
-            ) : (
-              <div className="gradient-primary flex h-12 w-12 items-center justify-center rounded-2xl shadow-soft">
-                <AlertTriangle className="h-6 w-6 text-white" />
-              </div>
-            )}
+            <AppLogo
+              url={branding.logoUrl}
+              alt={branding.orgName || t("app_title")}
+              className="h-12 w-12"
+            />
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 {branding.orgName || t("app_title")}
@@ -50,99 +47,144 @@ const Index = () => {
               </p>
             </div>
           </div>
+
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <Link
-              to="/admin"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background/70 px-3 text-sm text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
-            >
+            <Link to="/admin" className={navLink} aria-label={t("nav_manage")}>
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">{t("nav_manage")}</span>
             </Link>
-            <Link
-              to="/settings"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background/70 px-3 text-sm text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
-            >
+            <Link to="/settings" className={navLink} aria-label={t("settings_nav")}>
               <SlidersHorizontal className="h-4 w-4" />
               <span className="hidden sm:inline">{t("settings_nav")}</span>
             </Link>
           </div>
-        </div>
+        </header>
 
         {isLoading && (
-          <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground" role="status">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>{t("loading")}</span>
           </div>
         )}
 
         {isError && !isLoading && (
-          <Card className="mb-8 border-destructive/40 bg-destructive/5">
-            <CardContent className="p-5 text-destructive">{t("error_load")}</CardContent>
+          <Card className="border-destructive/70">
+            <CardContent className="space-y-3 p-5">
+              <p className="flex items-start gap-2 text-foreground">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                {t("error_load")}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  current.refetch();
+                  schedule.refetch();
+                }}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t("retry")}
+              </Button>
+            </CardContent>
           </Card>
         )}
 
-        {/* Hero: nu bereikbaar */}
+        {/* Wie is er nu bereikbaar: de vraag waarvoor deze pagina bestaat. */}
         {activeEntry && !isLoading && (
-          <div className="relative mb-10 overflow-hidden rounded-3xl shadow-hero">
-            <div className="gradient-on-call p-6 text-white sm:p-8">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/85">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
-                </span>
-                {t("now_reachable")}
-              </div>
+          <section
+            aria-labelledby="now-heading"
+            className="gradient-on-call mb-10 rounded-2xl p-6 text-white shadow-soft sm:p-8"
+          >
+            <h2
+              id="now-heading"
+              className="flex items-center gap-2 text-sm font-medium text-white/90"
+            >
+              {/* Markeert een echte toestand: deze dienst loopt op dit moment. */}
+              <span className="h-2 w-2 rounded-full bg-white" />
+              {t("now_reachable")}
+            </h2>
 
-              <div className="mt-4 flex items-center gap-4">
-                <img
-                  src={avatarUrl(activeEntry.name)}
-                  alt={activeEntry.name}
-                  className="h-16 w-16 rounded-2xl ring-2 ring-white/40"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-2xl font-bold sm:text-3xl">{activeEntry.name}</p>
-                  <p className="flex items-center gap-1.5 text-sm text-white/85">
-                    <Clock className="h-3.5 w-3.5" />
-                    {t("change_info", {
-                      when: formatDistanceToNowStrict(parseISO(activeEntry.endDate), {
-                        locale,
-                        addSuffix: true,
-                      }),
-                      date: format(parseISO(activeEntry.endDate), "d MMM", { locale }),
-                    })}
-                  </p>
-                </div>
+            <div className="mt-4 flex items-center gap-4">
+              <Avatar name={activeEntry.name} tone="duty" size="lg" />
+              <div className="min-w-0">
+                <p className="truncate text-3xl font-bold">{activeEntry.name}</p>
+                <p className="mt-0.5 text-sm text-white/90">
+                  {t("change_info", {
+                    when: formatDistanceToNowStrict(parseISO(activeEntry.endDate), {
+                      locale,
+                      addSuffix: true,
+                    }),
+                    date: format(parseISO(activeEntry.endDate), "d MMM", { locale }),
+                  })}
+                </p>
               </div>
-
-              <a
-                href={`tel:${activeEntry.phone}`}
-                className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-on-call shadow-sm transition-transform hover:scale-[1.01] active:scale-95"
-              >
-                <Phone className="h-5 w-5" />
-                <span className="font-mono">{activeEntry.phone}</span>
-              </a>
             </div>
-          </div>
+
+            <a
+              href={`tel:${activeEntry.phone}`}
+              aria-label={`${t("call_person", { name: activeEntry.name })}: ${activeEntry.phone}`}
+              className="mt-6 flex h-14 items-center justify-center gap-2 rounded-xl bg-white text-lg font-semibold text-on-call transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+            >
+              <Phone className="h-5 w-5" />
+              <span className="tabular-nums">{activeEntry.phone}</span>
+            </a>
+          </section>
         )}
 
-        {/* Planning */}
+        {/* Niemand ingepland: zeg wat er aan de hand is en wat de volgende stap is. */}
+        {!activeEntry && !isLoading && !isError && (
+          <Card className="mb-10 shadow-soft">
+            <CardContent className="flex items-start gap-3 p-5">
+              <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <h2 className="font-semibold text-foreground">{t("empty_title")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {/* Staat de volgende dienst al gepland, noem die dan: dat is
+                      het antwoord waar iemand op dit scherm naar zoekt. */}
+                  {upcoming.length > 0
+                    ? t("empty_next", {
+                        name: upcoming[0].name,
+                        date: format(parseISO(upcoming[0].startDate), "d MMMM", { locale }),
+                      })
+                    : t("empty_help")}
+                </p>
+                {upcoming.length === 0 && (
+                  <Link
+                    to="/admin"
+                    className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {t("nav_manage")}
+                  </Link>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {!isLoading && !isError && upcoming.length > 0 && (
-          <>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <section aria-labelledby="upcoming-heading">
+            <h2 id="upcoming-heading" className="mb-3 font-semibold text-foreground">
               {t("upcoming")}
             </h2>
-            <div className="space-y-3">
-              {upcoming.map((entry, i) => (
-                <OnCallCard
-                  key={entry.id}
-                  entry={entry}
-                  isActive={false}
-                  label={i === 0 ? t("next_week") : undefined}
-                />
-              ))}
-            </div>
-          </>
+            {/* De eerstvolgende week apart, de weken daarna als één rustig
+                blok: daar zoek je alleen op wanneer jij aan de beurt bent. */}
+            <ul className="space-y-3">
+              <OnCallCard entry={upcoming[0]} emphasis label={t("next_week")} />
+            </ul>
+
+            {upcoming.length > 1 && (
+              <Card className="mt-3">
+                <CardContent className="p-0">
+                  <ul className="divide-y divide-border">
+                    {upcoming.slice(1).map((entry) => (
+                      <OnCallCard key={entry.id} entry={entry} />
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+          </section>
         )}
       </div>
     </div>

@@ -58,7 +58,7 @@ setup page: it fills in the whole form from an exported file and puts the saved
 weeks back (database and SMTP passwords are not in the file unless you asked for
 them, so fill those in again).
 
-Saving writes `data/setup.json`, connects to the chosen database and creates
+Saving connects to the chosen database, stores the settings there and creates
 the schedule right away. After that the app goes straight to the normal view.
 
 Everything on that page (and the email settings) can be changed later under
@@ -170,6 +170,25 @@ Daylight saving is handled, including the weekend of a switch.
 
 `ROTACALL_TIMEZONE` fixes it from the outside; it is then read-only in the UI.
 
+## Where settings are stored
+
+The roster, rotation, email settings, time zone and admin token live **in the
+database**, in a table called `rotacall_settings` (`SETTINGS_TABLE`), one row
+per part. The app creates that table itself, so a database backup contains
+everything except one thing: the connection details of that same database.
+Those cannot live inside what they unlock, so they stay in `data/setup.json`.
+
+An existing installation moves over on the first start after this change: the
+settings are copied into the table and the file is trimmed to the connection
+details, including any old passwords that were in it.
+
+If the table cannot be read or created (database down, or the user has no
+`CREATE TABLE` right on a shared telephony database), the app keeps working
+from the file and says so in the log and on the settings page. If the admin
+token is unknown in that situation, management actions are refused with a 503
+rather than silently running unprotected; set `ADMIN_TOKEN` in the environment
+to keep managing in that case.
+
 ## Backup, restore and reset
 
 Under **Settings → Backup**, *Download backup* gives you one JSON file with all
@@ -204,7 +223,8 @@ npm run server:migrate   # copy MySQL/PostgreSQL rows into the SQLite file
 |----------|---------|-------------|
 | `DB_DRIVER` | `sqlite` | `sqlite` (built-in file), `mysql` or `postgres` |
 | `SQLITE_FILE` | `./data/rotacall.db` | SQLite database file (driver `sqlite`) |
-| `SETUP_FILE` | `./data/setup.json` | Where the settings (roster, rotation, database, mail) are stored |
+| `SETTINGS_TABLE` | `rotacall_settings` | Table holding roster, rotation, mail, time zone and admin token |
+| `SETUP_FILE` | `./data/setup.json` | Where the database connection details are stored |
 | `MAIL_STATE_FILE` | `./data/mail-state.json` | Which notifications were already sent |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | — | Database connection (driver `mysql` / `postgres`) |
 | `DATABASE_URL` | — | Connection string, PostgreSQL only |
@@ -223,17 +243,37 @@ Environment variables win over what the setup and settings pages saved, so an
 installation configured through `.env` or Portainer keeps behaving exactly as
 before — those fields are then shown as read-only in the UI.
 
-`data/setup.json` holds the database and SMTP passwords in plain text and is
-written with owner-only permissions; keep the `data/` directory (or the Docker
-volume) as private as the rest of your server.
+`data/setup.json` holds the database password in plain text and is written with
+owner-only permissions; keep the `data/` directory (or the Docker volume) as
+private as the rest of your server.
 
 With MySQL the DB user needs `SELECT`, `INSERT` and `UPDATE` on the table.
 
 ## Database permissions (MySQL only)
 
+The schedule table only needs read and write access:
+
 ```sql
 GRANT SELECT, INSERT, UPDATE ON <database>.period_config TO '<user>'@'%';
+```
+
+The settings table is created by the app, so it also needs `CREATE` (and access
+to that one table):
+
+```sql
+GRANT CREATE ON <database>.* TO '<user>'@'%';
+GRANT SELECT, INSERT, UPDATE, DELETE ON <database>.rotacall_settings TO '<user>'@'%';
 FLUSH PRIVILEGES;
+```
+
+Do not want to hand out `CREATE` on a shared telephony database? Create the
+table yourself and skip that grant:
+
+```sql
+CREATE TABLE rotacall_settings (
+  setting_key   VARCHAR(64) NOT NULL PRIMARY KEY,
+  setting_value TEXT        NOT NULL
+);
 ```
 
 ## Deploying with Portainer

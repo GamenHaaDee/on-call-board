@@ -1,6 +1,6 @@
 // Snelle inspectie van de piket-tabel (werkt met sqlite én mysql).
 //   npm run server:inspect
-import { getDbConfig, getTimezone } from "./settings";
+import { getDbConfig, getTimezone, loadSettings } from "./settings";
 import { nowInZone } from "./timezone";
 import { getDb, closeDb } from "./db/index";
 
@@ -13,6 +13,7 @@ interface Row {
 }
 
 async function main() {
+  await loadSettings();
   const db = await getDb();
   const dbConfig = getDbConfig();
   const table = db.quoteId(dbConfig.table);

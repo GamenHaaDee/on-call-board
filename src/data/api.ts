@@ -139,6 +139,8 @@ export interface AppSettings {
   adminTokenSet: boolean;
   /** Database vastgezet via environment variables? Dan is hij niet wijzigbaar. */
   dbFromEnv: boolean;
+  /** true = instellingen staan in het bestand omdat de database niet kon. */
+  settingsInFile: boolean;
   savedAt?: string;
 }
 

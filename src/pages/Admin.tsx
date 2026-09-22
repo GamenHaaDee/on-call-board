@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAdminStatus, useOnCallSchedule, usePeople, useUpdateAssignment, getAdminToken, setAdminToken, type Person } from "@/data/api";
 import type { OnCallEntry } from "@/data/onCallSchedule";
-import { avatarUrl } from "@/lib/oncall";
+import Avatar from "@/components/Avatar";
 import { dateLocale } from "@/lib/dateLocale";
 import { useBranding, setBranding } from "@/lib/branding";
 
@@ -54,7 +54,7 @@ function WeekRow({ entry, people }: { entry: OnCallEntry; people: Person[] }) {
     <Card className="shadow-soft">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-3">
-          <img src={avatarUrl(name)} alt={name} className="h-9 w-9 shrink-0 rounded-lg" />
+          <Avatar name={name} className="h-9 w-9" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span>

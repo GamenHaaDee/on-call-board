@@ -15,6 +15,8 @@ services:
       DB_DRIVER: ${DB_DRIVER:-}
       # Laat leeg om de tabelnaam in de setup-pagina te kiezen.
       DB_TABLE: ${DB_TABLE:-}
+      # Tabel met de instellingen (rooster, rotatie, mail, tijdzone).
+      SETTINGS_TABLE: ${SETTINGS_TABLE:-rotacall_settings}
 
       # Alleen nodig bij DB_DRIVER=mysql of postgres:
       DB_HOST: ${DB_HOST:-}

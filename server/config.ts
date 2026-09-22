@@ -122,7 +122,11 @@ export const config = {
 
   staticDir: envText("STATIC_DIR") ?? "dist",
 
-  // Instellingen uit de setup-/instellingenpagina worden hier bewaard.
+  // Tabel waarin rooster, rotatie, mail en tijdzone worden bewaard.
+  settingsTable: envText("SETTINGS_TABLE") ?? "rotacall_settings",
+
+  // Hier staan de verbindingsgegevens van de database (en, zolang de database
+  // niet bruikbaar is, de overige instellingen).
   setupFile: path.resolve(envText("SETUP_FILE") ?? path.join(process.cwd(), "data", "setup.json")),
 
   // Bijhouden welke dienstmeldingen al verstuurd zijn.

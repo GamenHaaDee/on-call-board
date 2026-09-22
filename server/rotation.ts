@@ -60,9 +60,15 @@ export async function ensureAssignments(now = new Date()): Promise<void> {
       continue;
     }
 
+    // Bestaat er al een week die op deze dag begint? Dan niets doen. De
+    // vergelijking gaat op de dag en niet op het exacte tijdstip, anders
+    // levert het wijzigen van de wisseltijd een tweede rij op voor dezelfde
+    // week, en overlappen twee perioden elkaar.
+    const dayStart = `${formatDate(weekStartDate(index))} 00:00:00`;
+    const nextDay = `${formatDate(addDays(weekStartDate(index), 1))} 00:00:00`;
     const existing = await db.all<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM ${TABLE} WHERE pc_startterm = ?`,
-      [startStr]
+      `SELECT COUNT(*) AS n FROM ${TABLE} WHERE pc_startterm >= ? AND pc_startterm < ?`,
+      [dayStart, nextDay]
     );
     if (existing[0].n > 0) continue;
 

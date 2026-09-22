@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Loader2, Mail, Plus, Rocket, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Loader2, Mail, Plus, Trash2, Upload } from "lucide-react";
 import { notify } from "@/lib/notify";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import DatabaseFields from "@/components/DatabaseFields";
+import AppLogo from "@/components/AppLogo";
 import TimezoneSelect from "@/components/TimezoneSelect";
 import {
   useSaveSetup,
@@ -199,9 +200,7 @@ const Setup = () => {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="gradient-primary flex h-12 w-12 items-center justify-center rounded-2xl shadow-soft">
-              <Rocket className="h-6 w-6 text-white" />
-            </div>
+            <AppLogo alt={t("app_title")} className="h-12 w-12" />
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 {t("setup_title")}
