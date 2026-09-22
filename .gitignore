@@ -28,3 +28,9 @@ server/roster.json
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite-database (lokale gegevens)
+data/
+*.db
+*.db-wal
+*.db-shm

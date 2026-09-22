@@ -1,4 +1,4 @@
-import { Phone, AlertTriangle, Loader2, Settings, Clock } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, Settings, SlidersHorizontal, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +58,13 @@ const Index = () => {
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">{t("nav_manage")}</span>
+            </Link>
+            <Link
+              to="/settings"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-background/70 px-3 text-sm text-muted-foreground backdrop-blur transition-colors hover:text-foreground"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("settings_nav")}</span>
             </Link>
           </div>
         </div>

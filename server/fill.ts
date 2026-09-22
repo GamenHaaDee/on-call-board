@@ -1,6 +1,6 @@
 // Eenmalig de planning vooruit vullen in de bestaande piket-tabel.
 // Draai met:  npm run server:fill
-import { ensureAssignments, closePool } from "./rotation.js";
+import { ensureAssignments, closePool } from "./rotation";
 
 ensureAssignments()
   .then(() => console.log("[fill] Klaar."))
