@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Check, Database, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ const DRIVERS: { value: DbDriver; label: string }[] = [
 ];
 
 const DEFAULT_PORT: Record<DbDriver, number> = { sqlite: 0, mysql: 3306, postgres: 5432 };
+const STANDARD_PORTS = Object.values(DEFAULT_PORT);
 
 interface Props {
   value: DatabaseSettings;
@@ -30,16 +31,16 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
   const pickDriver = (driver: DbDriver) => {
     if (disabled) return;
-    // Poort meeschakelen zolang de gebruiker hem niet zelf heeft aangepast.
-    const port =
-      value.port === DEFAULT_PORT[value.driver] || !value.port ? DEFAULT_PORT[driver] : value.port;
-    set({ driver, port });
+    // De poort meeschakelen, tenzij er een eigen poort is ingevuld: alleen een
+    // waarde die van geen enkele driver de standaard is, is er zelf ingezet.
+    const custom = Boolean(value.port) && !STANDARD_PORTS.includes(value.port);
+    set({ driver, port: custom ? value.port : DEFAULT_PORT[driver] });
   };
 
   const runTest = () =>
     test.mutate(value, {
-      onSuccess: () => toast.success(t("db_test_ok")),
-      onError: (e) => toast.error(e instanceof Error ? e.message : t("db_test")),
+      onSuccess: () => notify.success(t("db_test_ok")),
+      onError: (e) => notify.error(e instanceof Error ? e.message : t("db_test")),
     });
 
   const isServer = value.driver !== "sqlite";
@@ -64,7 +65,7 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
               disabled={disabled}
               aria-pressed={active}
               onClick={() => pickDriver(driver.value)}
-              className={`rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`min-h-11 rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
                 active
                   ? "border-primary bg-primary/5 ring-1 ring-primary"
                   : "border-border hover:bg-muted/60"

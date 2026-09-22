@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { Toaster } from "@/components/ui/sonner";
 import { useSetupStatus } from "@/data/api";
 import Index from "./pages/Index.tsx";
 import Admin from "./pages/Admin.tsx";
@@ -31,7 +30,6 @@ const RequireSetup = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <Toaster />
     <BrowserRouter>
       <Routes>
         <Route

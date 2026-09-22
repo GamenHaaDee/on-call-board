@@ -34,3 +34,6 @@ data/
 *.db
 *.db-wal
 *.db-shm
+
+#MD files
+CLAUDE.md

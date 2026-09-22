@@ -16,7 +16,7 @@ const LanguageSwitcher = () => {
   return (
     <Select value={current} onValueChange={changeLanguage}>
       <SelectTrigger
-        className="h-9 w-auto gap-1.5 border-border bg-background/70 px-3 backdrop-blur"
+        className="h-11 w-auto gap-1.5 border-input bg-background/70 px-3 backdrop-blur sm:h-9"
         aria-label={t("language")}
       >
         <Languages className="h-4 w-4 text-muted-foreground" />

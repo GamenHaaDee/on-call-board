@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2, Mail, Plus, Rocket, Trash2, Upload } from "lucide-react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,11 +129,11 @@ const Setup = () => {
       const weeks = Array.isArray(parsed.assignments) ? parsed.assignments : [];
       setRestored(weeks);
 
-      toast.success(
+      notify.success(
         t("backup_imported", { people: parsed.settings.roster.length, weeks: weeks.length })
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("backup_invalid"));
+      notify.error(e instanceof Error ? e.message : t("backup_invalid"));
     }
   };
 
@@ -150,11 +150,11 @@ const Setup = () => {
       .filter((p) => p.name || p.phone || p.email);
 
     if (roster.length === 0 || roster.some((p) => !p.name || !p.phone)) {
-      toast.error(t("setup_error_people"));
+      notify.error(t("setup_error_people"));
       return;
     }
     if (!isMonday(anchorDate)) {
-      toast.error(t("setup_error_monday"));
+      notify.error(t("setup_error_monday"));
       return;
     }
 
@@ -174,14 +174,14 @@ const Setup = () => {
       {
         onSuccess: (result) => {
           if (result?.imported) {
-            toast.success(t("backup_restored", { count: result.imported }));
+            notify.success(t("backup_restored", { count: result.imported }));
           }
           // Meteen bruikbaar houden voor de admin- en instellingenpagina.
           if (adminToken.trim()) storeAdminToken(adminToken.trim());
-          toast.success(t("setup_done"));
+          notify.success(t("setup_done"));
           navigate("/", { replace: true });
         },
-        onError: (e) => toast.error(e instanceof Error ? e.message : t("toast_save_failed")),
+        onError: (e) => notify.error(e instanceof Error ? e.message : t("toast_save_failed")),
       }
     );
   };

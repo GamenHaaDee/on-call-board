@@ -20,6 +20,14 @@ export interface MailMessage {
 
 function createTransport(mail: MailSettings) {
   if (!mail.host) throw new Error("Geen SMTP-server ingesteld");
+  // Een gebruikersnaam zonder wachtwoord levert bij nodemailer de cryptische
+  // melding "Missing credentials for PLAIN" op; dit zegt wat er te doen staat.
+  if (mail.user && !mail.password) {
+    throw new Error(
+      `Geen wachtwoord ingevuld bij gebruiker "${mail.user}". ` +
+        `Vul het wachtwoord in, of laat de gebruikersnaam leeg als de server geen login vraagt.`
+    );
+  }
   return nodemailer.createTransport({
     host: mail.host,
     port: mail.port,

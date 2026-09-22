@@ -19,6 +19,21 @@ interface ApiAssignment {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
+/**
+ * Fout met de HTTP-status erbij, zodat een pagina "token vereist" (401) kan
+ * onderscheiden van "server onbereikbaar" (status 0) en daar iets anders over
+ * kan zeggen dan "er ging iets mis".
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 // DB geeft DATETIME als "2026-03-02 12:00:00"; maak er ISO van zodat
 // date-fns parseISO het begrijpt.
 const toIso = (s: string) => s.replace(" ", "T");
@@ -136,10 +151,12 @@ async function sendJson<T>(path: string, method: "POST" | "PUT", body: unknown):
     },
     body: JSON.stringify(body),
   });
-  if (res.status === 401) throw new Error("Niet geautoriseerd — controleer het admin-token.");
+  if (res.status === 401) {
+    throw new ApiError("Niet geautoriseerd. Controleer het admin-token.", 401);
+  }
   if (!res.ok) {
     const payload = await res.json().catch(() => null);
-    throw new Error(payload?.error ?? `Request mislukt: ${res.status}`);
+    throw new ApiError(payload?.error ?? `Verzoek mislukt (${res.status})`, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -234,11 +251,16 @@ export function useSettings(enabled = true) {
     queryKey: ["settings"],
     enabled,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/settings`, {
-        headers: { "x-admin-token": getAdminToken() },
-      });
-      if (res.status === 401) throw new Error("Niet geautoriseerd — controleer het admin-token.");
-      if (!res.ok) throw new Error(`Request mislukt: ${res.status}`);
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/settings`, {
+          headers: { "x-admin-token": getAdminToken() },
+        });
+      } catch {
+        // Geen antwoord: server plat, verkeerde poort, of geen netwerk.
+        throw new ApiError("De server reageert niet", 0);
+      }
+      if (!res.ok) throw new ApiError(`Verzoek mislukt (${res.status})`, res.status);
       return res.json() as Promise<AppSettings>;
     },
     retry: false,
@@ -286,7 +308,7 @@ export function useExportBackup() {
         `${API_BASE}/api/settings/export${includeSecrets ? "?secrets=1" : ""}`,
         { headers: { "x-admin-token": getAdminToken() } }
       );
-      if (res.status === 401) throw new Error("Niet geautoriseerd — controleer het admin-token.");
+      if (res.status === 401) throw new ApiError("Niet geautoriseerd. Controleer het admin-token.", 401);
       if (!res.ok) throw new Error(`Export mislukt: ${res.status}`);
 
       const blob = await res.blob();
@@ -358,7 +380,7 @@ export function useUpdateAssignment() {
         },
         body: JSON.stringify({ name: vars.name, phone: vars.phone }),
       });
-      if (res.status === 401) throw new Error("Niet geautoriseerd — controleer het admin-token.");
+      if (res.status === 401) throw new ApiError("Niet geautoriseerd. Controleer het admin-token.", 401);
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.error ?? `Opslaan mislukt: ${res.status}`);

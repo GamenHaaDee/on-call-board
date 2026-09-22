@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Calendar, Loader2, Save, CalendarCog, Palette, SlidersHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,8 +44,8 @@ function WeekRow({ entry, people }: { entry: OnCallEntry; people: Person[] }) {
     update.mutate(
       { id: entry.id, name: name.trim(), phone: phone.trim() },
       {
-        onSuccess: () => toast.success(t("toast_updated", { name })),
-        onError: (e) => toast.error(e instanceof Error ? e.message : t("toast_save_failed")),
+        onSuccess: () => notify.success(t("toast_updated", { name })),
+        onError: (e) => notify.error(e instanceof Error ? e.message : t("toast_save_failed")),
       }
     );
   };
@@ -183,7 +183,7 @@ const Admin = () => {
                 className="shrink-0"
                 onClick={() => {
                   setBranding({ orgName: orgName.trim(), logoUrl: logoUrl.trim() });
-                  toast.success(t("brand_saved"));
+                  notify.success(t("brand_saved"));
                 }}
               >
                 <Save className="h-4 w-4" />
@@ -209,7 +209,7 @@ const Admin = () => {
                 variant="secondary"
                 onClick={() => {
                   setAdminToken(token);
-                  toast.success(t("token_saved"));
+                  notify.success(t("token_saved"));
                 }}
               >
                 {t("token_save")}

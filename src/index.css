@@ -26,14 +26,19 @@ All colors MUST be HSL.
     --muted: 220 15% 92%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 150 60% 40%;
-    --accent-foreground: 0 0% 100%;
+    /* Hoverkleur voor knoppen en keuzelijsten: neutraal, niet het dienstgroen. */
+    --accent: 220 15% 92%;
+    --accent-foreground: 220 25% 10%;
 
-    --destructive: 0 72% 51%;
+    /* 4.87:1 als tekst op de paginakleur, 5.22:1 met witte tekst erop. */
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Scheidingslijn: decoratief, draagt geen informatie. */
     --border: 220 15% 88%;
-    --input: 220 15% 88%;
+    /* Rand van invoervelden en andere bedienbare elementen: 3.57:1 op wit,
+       want WCAG 1.4.11 vraagt 3:1 voor de omtrek van een UI-component. */
+    --input: 220 12% 55%;
     --ring: 215 80% 48%;
 
     --radius: 0.75rem;
@@ -47,10 +52,13 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    --on-call: 150 60% 40%;
+    /* 5.32:1 met wit, zodat de badge en de telefoonknop leesbaar zijn. */
+    --on-call: 150 60% 30%;
     --on-call-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+    /* Markering "niet opgeslagen": 3.57:1 op de paginakleur. */
+    --unsaved: 35 95% 38%;
   }
 
   .dark {
@@ -81,6 +89,7 @@ All colors MUST be HSL.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    --unsaved: 38 92% 60%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -109,9 +118,37 @@ All colors MUST be HSL.
   }
 }
 
+/* Meldingen (typescript-toastify) in de kleuren van de app in plaats van de
+   felle standaardkleuren van de library. De *-primary kleuren zijn het vlak,
+   de *-secondary kleuren de rand en de voortgangsbalk. */
+:root {
+  --info-primary: hsl(215 80% 96%);
+  --info-secondary: hsl(215 80% 48%);
+  --success-primary: hsl(150 60% 94%);
+  --success-secondary: hsl(150 60% 30%);
+  --warning-primary: hsl(38 92% 94%);
+  --warning-secondary: hsl(35 95% 38%);
+  --error-primary: hsl(0 72% 96%);
+  --error-secondary: hsl(0 72% 48%);
+  --light_color: hsl(220 25% 10%);
+}
+
+.toast {
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+}
+
+/* De library sluit een melding op klik; met het toetsenbord kan dat ook
+   (zie src/lib/notify.ts), dus hoort er een zichtbare focusrand bij. */
+.toast:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
 @layer components {
   .gradient-on-call {
-    background-image: linear-gradient(135deg, hsl(150 62% 44%), hsl(168 68% 36%));
+    /* Wit haalt 4.69:1 op de lichtste stop en 5.37:1 op de donkerste. */
+    background-image: linear-gradient(135deg, hsl(150 62% 32%), hsl(168 68% 28%));
   }
   .gradient-primary {
     background-image: linear-gradient(135deg, hsl(215 82% 54%), hsl(222 80% 44%));
