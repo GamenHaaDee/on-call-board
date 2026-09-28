@@ -36,7 +36,7 @@ const OnCallCard = ({ entry, emphasis = false, label }: OnCallCardProps) => {
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="truncate font-semibold text-foreground">{entry.name}</span>
+          <span className="break-words font-semibold text-foreground">{entry.name}</span>
           {label && <span className="text-xs font-medium text-primary">{label}</span>}
         </div>
         <p className="text-sm text-muted-foreground">{period}</p>

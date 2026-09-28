@@ -8,6 +8,7 @@ import Avatar from "@/components/Avatar";
 import AppLogo from "@/components/AppLogo";
 import OnCallCard from "@/components/OnCallCard";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import PoweredBy from "@/components/PoweredBy";
 import { useCurrentOnCall, useOnCallSchedule } from "@/data/api";
 import { useBranding } from "@/lib/branding";
 import { dateLocale } from "@/lib/dateLocale";
@@ -29,9 +30,9 @@ const Index = () => {
   const navLink = "inline-flex h-11 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-9";
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div className="flex h-[100dvh] min-h-[30rem] flex-col">
+      <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col px-4 py-6 sm:py-8">
+        <header className="mb-6 flex shrink-0 flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             <AppLogo
               url={branding.logoUrl}
@@ -94,7 +95,7 @@ const Index = () => {
         {activeEntry && !isLoading && (
           <section
             aria-labelledby="now-heading"
-            className="gradient-on-call mb-10 rounded-2xl p-6 text-white shadow-soft sm:p-8"
+            className="gradient-on-call mb-6 shrink-0 rounded-2xl p-5 text-white shadow-soft sm:p-6"
           >
             <h2
               id="now-heading"
@@ -108,7 +109,7 @@ const Index = () => {
             <div className="mt-4 flex items-center gap-4">
               <Avatar name={activeEntry.name} tone="duty" size="lg" />
               <div className="min-w-0">
-                <p className="truncate text-3xl font-bold">{activeEntry.name}</p>
+                <p className="break-words text-2xl font-bold sm:text-3xl">{activeEntry.name}</p>
                 <p className="mt-0.5 text-sm text-white/90">
                   {t("change_info", {
                     when: formatDistanceToNowStrict(parseISO(activeEntry.endDate), {
@@ -134,7 +135,7 @@ const Index = () => {
 
         {/* Niemand ingepland: zeg wat er aan de hand is en wat de volgende stap is. */}
         {!activeEntry && !isLoading && !isError && (
-          <Card className="mb-10 shadow-soft">
+          <Card className="mb-6 shrink-0 shadow-soft">
             <CardContent className="flex items-start gap-3 p-5">
               <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
@@ -163,10 +164,14 @@ const Index = () => {
         )}
 
         {!isLoading && !isError && upcoming.length > 0 && (
-          <section aria-labelledby="upcoming-heading">
-            <h2 id="upcoming-heading" className="mb-3 font-semibold text-foreground">
+          <section
+            aria-labelledby="upcoming-heading"
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <h2 id="upcoming-heading" className="mb-3 shrink-0 font-semibold text-foreground">
               {t("upcoming")}
             </h2>
+            <div className="min-h-[8rem] flex-1 overflow-y-auto">
             {/* De eerstvolgende week apart, de weken daarna als één rustig
                 blok: daar zoek je alleen op wanneer jij aan de beurt bent. */}
             <ul className="space-y-3">
@@ -184,9 +189,12 @@ const Index = () => {
                 </CardContent>
               </Card>
             )}
+            </div>
           </section>
         )}
       </div>
+
+      <PoweredBy />
     </div>
   );
 };
