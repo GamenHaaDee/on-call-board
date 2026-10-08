@@ -205,7 +205,16 @@ function parseSync(input: unknown, fallback: SyncSettings): SyncSettings {
   };
 }
 
-function parseZabbix(input: unknown, fallback: ZabbixSettings): ZabbixSettings {
+/**
+ * `requireChoice` staat uit bij het testen van de verbinding: de gebruiker en
+ * het media-type kies je uit lijsten die juist uit die test komen, dus daar
+ * kan nog niets ingevuld zijn.
+ */
+function parseZabbix(
+  input: unknown,
+  fallback: ZabbixSettings,
+  requireChoice = true
+): ZabbixSettings {
   const raw = (input ?? {}) as Record<string, unknown>;
   const id = (value: unknown, previous: string) => {
     const next = String(value ?? previous).trim();
@@ -231,8 +240,10 @@ function parseZabbix(input: unknown, fallback: ZabbixSettings): ZabbixSettings {
   if (next.enabled) {
     if (!next.url) fail("Vul het adres van Zabbix in");
     if (!next.token && !next.user) fail("Vul een API-token in, of een gebruikersnaam met wachtwoord");
-    if (!next.userId) fail("Kies de Zabbix-gebruiker die de meldingen krijgt");
-    if (!next.mediaTypeId) fail("Kies het media-type voor sms");
+    if (requireChoice) {
+      if (!next.userId) fail("Kies de Zabbix-gebruiker die de meldingen krijgt");
+      if (!next.mediaTypeId) fail("Kies het media-type voor sms");
+    }
   }
   return next;
 }
@@ -583,7 +594,7 @@ export function createApiRouter(): express.Router {
   // Zabbix: verbinding proberen en meteen de keuzelijsten vullen.
   api.post("/settings/zabbix/test", requireAdmin, async (req, res) => {
     try {
-      const zabbix = parseZabbix(req.body, getZabbix());
+      const zabbix = parseZabbix(req.body, getZabbix(), false);
       res.json({ ok: true, ...(await testZabbix(zabbix)) });
     } catch (err) {
       const message = err instanceof ValidationError ? err.message : (err as Error).message;
