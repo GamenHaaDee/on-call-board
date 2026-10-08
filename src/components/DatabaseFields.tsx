@@ -20,10 +20,24 @@ interface Props {
   onChange: (next: DatabaseSettings) => void;
   /** Vastgezet via environment variables: alleen tonen, niet wijzigen. */
   disabled?: boolean;
+  /** Zet op false waar de sectie zelf al uitlegt waar deze velden voor zijn. */
+  showIntro?: boolean;
+  /**
+   * Voorvoegsel voor de veld-id's. Staan er twee van deze formulieren op één
+   * pagina (eigen database en die van het telefoniesysteem), dan mogen de id's
+   * niet botsen: anders wijst een label naar het verkeerde veld.
+   */
+  idPrefix?: string;
 }
 
 /** Databasekeuze + verbindingsgegevens; gedeeld door setup en instellingen. */
-const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
+const DatabaseFields = ({
+  value,
+  onChange,
+  disabled = false,
+  showIntro = true,
+  idPrefix = "db",
+}: Props) => {
   const { t } = useTranslation();
   const test = useTestDatabase();
 
@@ -47,7 +61,7 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{t("db_help")}</p>
+      {showIntro && <p className="text-sm text-muted-foreground">{t("db_help")}</p>}
 
       {disabled && (
         <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -86,11 +100,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
       {value.driver === "sqlite" ? (
         <div>
-          <Label className="text-xs" htmlFor="db-file">
+          <Label className="text-xs" htmlFor={`${idPrefix}-file`}>
             {t("db_file")}
           </Label>
           <Input
-            id="db-file"
+            id={`${idPrefix}-file`}
             value={value.file}
             disabled={disabled}
             onChange={(e) => set({ file: e.target.value })}
@@ -100,11 +114,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
         <div className="space-y-3">
           {value.driver === "postgres" && (
             <div>
-              <Label className="text-xs" htmlFor="db-url">
+              <Label className="text-xs" htmlFor={`${idPrefix}-url`}>
                 URL
               </Label>
               <Input
-                id="db-url"
+                id={`${idPrefix}-url`}
                 value={value.url}
                 disabled={disabled}
                 placeholder="postgres://user:pass@host:5432/db"
@@ -115,22 +129,22 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1">
-              <Label className="text-xs" htmlFor="db-host">
+              <Label className="text-xs" htmlFor={`${idPrefix}-host`}>
                 Host
               </Label>
               <Input
-                id="db-host"
+                id={`${idPrefix}-host`}
                 value={value.host}
                 disabled={disabled}
                 onChange={(e) => set({ host: e.target.value })}
               />
             </div>
             <div className="w-full sm:w-28">
-              <Label className="text-xs" htmlFor="db-port">
+              <Label className="text-xs" htmlFor={`${idPrefix}-port`}>
                 Port
               </Label>
               <Input
-                id="db-port"
+                id={`${idPrefix}-port`}
                 type="number"
                 value={value.port}
                 disabled={disabled}
@@ -141,11 +155,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex-1">
-              <Label className="text-xs" htmlFor="db-user">
+              <Label className="text-xs" htmlFor={`${idPrefix}-user`}>
                 User
               </Label>
               <Input
-                id="db-user"
+                id={`${idPrefix}-user`}
                 value={value.user}
                 disabled={disabled}
                 autoComplete="off"
@@ -153,11 +167,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
               />
             </div>
             <div className="flex-1">
-              <Label className="text-xs" htmlFor="db-password">
+              <Label className="text-xs" htmlFor={`${idPrefix}-password`}>
                 Password
               </Label>
               <Input
-                id="db-password"
+                id={`${idPrefix}-password`}
                 type="password"
                 value={value.password ?? ""}
                 disabled={disabled}
@@ -169,11 +183,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
           </div>
 
           <div>
-            <Label className="text-xs" htmlFor="db-name">
+            <Label className="text-xs" htmlFor={`${idPrefix}-name`}>
               Database
             </Label>
             <Input
-              id="db-name"
+              id={`${idPrefix}-name`}
               value={value.database}
               disabled={disabled}
               onChange={(e) => set({ database: e.target.value })}
@@ -184,11 +198,11 @@ const DatabaseFields = ({ value, onChange, disabled = false }: Props) => {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <Label className="text-xs" htmlFor="db-table">
+          <Label className="text-xs" htmlFor={`${idPrefix}-table`}>
             {t("db_table")}
           </Label>
           <Input
-            id="db-table"
+            id={`${idPrefix}-table`}
             value={value.table}
             disabled={disabled}
             onChange={(e) => set({ table: e.target.value })}
