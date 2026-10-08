@@ -189,28 +189,34 @@ async function withSession<T>(
 export async function testZabbix(settings: ZabbixSettings): Promise<ZabbixInfo> {
   return withSession(settings, async (session) => {
     const field = userField(session.version);
+    // Niet door Zabbix laten sorteren: welke velden dat mogen verschilt per
+    // object en per versie (mediatype.get kent alleen "mediatypeid"), en een
+    // keuzelijst sorteren kunnen we zelf.
     const users = await rpc<Record<string, string>[]>(
       session.url,
       "user.get",
-      { output: ["userid", field, "name", "surname"], sortfield: field },
+      { output: ["userid", field, "name", "surname"] },
       session
     );
     const mediaTypes = await rpc<ZabbixMediaType[]>(
       session.url,
       "mediatype.get",
-      { output: ["mediatypeid", "name", "type"], sortfield: "name" },
+      { output: ["mediatypeid", "name", "type"] },
       session
     );
+    const byName = (a: string, b: string) => a.localeCompare(b);
 
     return {
       version: session.version,
-      users: users.map((u) => ({
-        userid: u.userid,
-        username: u[field] ?? u.userid,
-        name: u.name,
-        surname: u.surname,
-      })),
-      mediaTypes,
+      users: users
+        .map((u) => ({
+          userid: u.userid,
+          username: u[field] ?? u.userid,
+          name: u.name,
+          surname: u.surname,
+        }))
+        .sort((a, b) => byName(a.username, b.username)),
+      mediaTypes: [...mediaTypes].sort((a, b) => byName(a.name, b.name)),
     };
   });
 }
