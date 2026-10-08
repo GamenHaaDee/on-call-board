@@ -8,6 +8,7 @@ import { reopenDb, testConnection } from "./db/index";
 import type { DbConfig, DbDriverName } from "./db/types";
 import { sendDueNotifications, sendMail, verifyMail, buildMessage, fillTemplate } from "./mail";
 import { readSyncedRow, syncCurrent } from "./sync";
+import { readZabbixMedia, syncZabbix, testZabbix } from "./zabbix";
 import { isValidTimezone, serverTimezone } from "./timezone";
 import {
   DEFAULT_MAIL,
@@ -22,6 +23,7 @@ import {
   getRotation,
   getSettings,
   getSync,
+  getZabbix,
   isConfigured,
   isDbFromEnv,
   loadSettings,
@@ -31,6 +33,7 @@ import {
   type RotationSettings,
   type Settings,
   type SyncSettings,
+  type ZabbixSettings,
 } from "./settings";
 import {
   deleteAllAssignments,
@@ -202,6 +205,38 @@ function parseSync(input: unknown, fallback: SyncSettings): SyncSettings {
   };
 }
 
+function parseZabbix(input: unknown, fallback: ZabbixSettings): ZabbixSettings {
+  const raw = (input ?? {}) as Record<string, unknown>;
+  const id = (value: unknown, previous: string) => {
+    const next = String(value ?? previous).trim();
+    if (next && !/^\d+$/.test(next)) fail(`Ongeldig Zabbix-id: ${next}`);
+    return next;
+  };
+
+  const next: ZabbixSettings = {
+    enabled: raw.enabled === undefined ? fallback.enabled : Boolean(raw.enabled),
+    url: String(raw.url ?? fallback.url).trim(),
+    // Een leeg geheim betekent: laat staan wat er is opgeslagen. De pagina
+    // krijgt token en wachtwoord nooit terug, dus komen die velden leeg binnen
+    // zodra iemand ze niet opnieuw intikt.
+    token: String(raw.token ?? "") || fallback.token,
+    user: String(raw.user ?? fallback.user).trim(),
+    password: String(raw.password ?? "") || fallback.password,
+    userId: id(raw.userId, fallback.userId),
+    mediaTypeId: id(raw.mediaTypeId, fallback.mediaTypeId),
+    lastSyncedAt: fallback.lastSyncedAt,
+    lastValue: fallback.lastValue,
+  };
+
+  if (next.enabled) {
+    if (!next.url) fail("Vul het adres van Zabbix in");
+    if (!next.token && !next.user) fail("Vul een API-token in, of een gebruikersnaam met wachtwoord");
+    if (!next.userId) fail("Kies de Zabbix-gebruiker die de meldingen krijgt");
+    if (!next.mediaTypeId) fail("Kies het media-type voor sms");
+  }
+  return next;
+}
+
 function parseTimezone(input: unknown): string {
   const zone = String(input ?? "").trim();
   if (!isValidTimezone(zone)) fail(`Onbekende tijdzone: ${zone}`);
@@ -213,6 +248,7 @@ function publicSettings(settings: Settings) {
   const { password: dbPassword, ...database } = settings.database;
   const { password: mailPassword, ...mail } = settings.mail;
   const { password: syncPassword, ...syncTarget } = settings.sync.target;
+  const { password: zbxPassword, token: zbxToken, ...zabbix } = settings.zabbix;
   return {
     roster: settings.roster,
     rotation: settings.rotation,
@@ -226,6 +262,11 @@ function publicSettings(settings: Settings) {
     sync: {
       ...settings.sync,
       target: { ...syncTarget, passwordSet: Boolean(syncPassword) },
+    },
+    zabbix: {
+      ...zabbix,
+      passwordSet: Boolean(zbxPassword),
+      tokenSet: Boolean(zbxToken),
     },
     adminTokenSet: Boolean(settings.adminToken),
     dbFromEnv: isDbFromEnv(),
@@ -299,6 +340,7 @@ export function createApiRouter(): express.Router {
       // Raakt dit de week die nu loopt, dan moet het telefoniesysteem het
       // meteen weten in plaats van bij de volgende controle.
       syncCurrent().catch((err) => console.error("[sync] mislukt:", (err as Error).message));
+      syncZabbix().catch((err) => console.error("[zabbix] mislukt:", (err as Error).message));
 
       res.json(await getById(id));
     } catch (err) {
@@ -400,6 +442,16 @@ export function createApiRouter(): express.Router {
           });
         }
         patch.sync = sync;
+      }
+      if (body.zabbix !== undefined) {
+        const zabbix = parseZabbix(body.zabbix, current.zabbix);
+        if (zabbix.enabled) {
+          // Niet opslaan wat niet werkt: eerst kijken of Zabbix ons binnenlaat.
+          await testZabbix(zabbix).catch((err) => {
+            fail(`Verbinden met Zabbix mislukt: ${(err as Error).message}`);
+          });
+        }
+        patch.zabbix = zabbix;
       }
       if (body.timezone !== undefined) {
         if (isTimezoneFromEnv()) {
@@ -523,6 +575,40 @@ export function createApiRouter(): express.Router {
   api.get("/settings/sync/row", requireAdmin, async (_req, res) => {
     try {
       res.json({ ok: true, row: await readSyncedRow(), sync: getSync().lastSyncedAt ?? null });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  // Zabbix: verbinding proberen en meteen de keuzelijsten vullen.
+  api.post("/settings/zabbix/test", requireAdmin, async (req, res) => {
+    try {
+      const zabbix = parseZabbix(req.body, getZabbix());
+      res.json({ ok: true, ...(await testZabbix(zabbix)) });
+    } catch (err) {
+      const message = err instanceof ValidationError ? err.message : (err as Error).message;
+      res.status(400).json({ error: message });
+    }
+  });
+
+  // Het actuele nummer nu in Zabbix zetten, en teruglezen wat er staat.
+  api.post("/settings/zabbix/run", requireAdmin, async (_req, res) => {
+    try {
+      const result = await syncZabbix();
+      const sendto = await readZabbixMedia().catch(() => null);
+      res.json({ ok: true, ...result, sendto });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  api.get("/settings/zabbix/status", requireAdmin, async (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        sendto: await readZabbixMedia(),
+        lastSyncedAt: getZabbix().lastSyncedAt ?? null,
+      });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
     }
@@ -662,6 +748,7 @@ export async function startScheduler(): Promise<() => void> {
     // Zelfde ritme: na een wissel of een handmatige wijziging staat het juiste
     // nummer binnen enkele minuten in het telefoniesysteem.
     syncCurrent().catch((err) => console.error("[sync] mislukt:", (err as Error).message));
+    syncZabbix().catch((err) => console.error("[zabbix] mislukt:", (err as Error).message));
   });
 
   return () => {

@@ -80,9 +80,31 @@ export interface SyncSettings {
   lastSyncedAt?: string;
 }
 
+/**
+ * Koppeling met Zabbix: daar melden de acties aan één vaste gebruiker, en wij
+ * zetten elke rotatie het nummer van de dienstdoende in diens sms-media.
+ */
+export interface ZabbixSettings {
+  enabled: boolean;
+  /** Adres van de API, bv. https://zabbix.example.com/api_jsonrpc.php */
+  url: string;
+  /** API-token (aanbevolen); anders gebruikersnaam en wachtwoord. */
+  token: string;
+  user: string;
+  password: string;
+  /** De gebruiker waarvan de media wordt bijgewerkt. */
+  userId: string;
+  /** Het media-type voor sms. */
+  mediaTypeId: string;
+  lastSyncedAt?: string;
+  /** Wat er voor het laatst is weggeschreven. */
+  lastValue?: string;
+}
+
 export interface Settings {
   roster: RosterPerson[];
   sync: SyncSettings;
+  zabbix: ZabbixSettings;
   /** IANA-naam, bv. "Europe/Amsterdam". Leeg = de tijdzone van de server. */
   timezone: string;
   rotation: RotationSettings;
@@ -173,6 +195,7 @@ const DB_KEYS = [
   "timezone",
   "adminToken",
   "sync",
+  "zabbix",
   "savedAt",
 ] as const;
 
@@ -340,6 +363,21 @@ export const DEFAULT_SYNC: SyncSettings = {
   },
 };
 
+export const DEFAULT_ZABBIX: ZabbixSettings = {
+  enabled: false,
+  url: "",
+  token: "",
+  user: "",
+  password: "",
+  userId: "",
+  mediaTypeId: "",
+};
+
+/** Instellingen van de koppeling met Zabbix. */
+export function getZabbix(): ZabbixSettings {
+  return { ...DEFAULT_ZABBIX, ...readStored()?.zabbix };
+}
+
 /** Instellingen van de koppeling met het telefoniesysteem. */
 export function getSync(): SyncSettings {
   const saved = readStored()?.sync;
@@ -371,6 +409,7 @@ export function getSettings(): Settings {
   return {
     roster: getRoster(),
     sync: getSync(),
+    zabbix: getZabbix(),
     timezone: getTimezoneSetting(),
     rotation: getRotation(),
     database: getDbConfig(),
