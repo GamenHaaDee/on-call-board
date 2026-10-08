@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRightLeft,
   Database,
   Download,
   Loader2,
@@ -34,6 +35,7 @@ import {
   useExportBackup,
   useResetApp,
   useRunMail,
+  useRunSync,
   useSaveSettings,
   useSettings,
   useTestMail,
@@ -41,6 +43,7 @@ import {
   type MailSettings,
   type RosterPerson,
   type RotationSettings,
+  type SyncSettings,
 } from "@/data/api";
 
 const toTimeInput = (value: string) => value.slice(0, 5);
@@ -49,7 +52,15 @@ const isMonday = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay() === 1
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-type SectionId = "roster" | "rotation" | "database" | "mail" | "security" | "backup" | "reset";
+type SectionId =
+  | "roster"
+  | "rotation"
+  | "database"
+  | "mail"
+  | "sync"
+  | "security"
+  | "backup"
+  | "reset";
 
 /**
  * Eén blok instellingen. `tone` bepaalt het gewicht: het rooster is waar de
@@ -126,6 +137,7 @@ const Settings = () => {
   const save = useSaveSettings();
   const testMail = useTestMail();
   const runMail = useRunMail();
+  const runSync = useRunSync();
   const exportBackup = useExportBackup();
   const resetApp = useResetApp();
 
@@ -143,6 +155,8 @@ const Settings = () => {
   const [databaseSaved, setDatabaseSaved] = useState<DatabaseSettings | null>(null);
   const [mail, setMail] = useState<MailSettings | null>(null);
   const [mailSaved, setMailSaved] = useState<MailSettings | null>(null);
+  const [sync, setSync] = useState<SyncSettings | null>(null);
+  const [syncSaved, setSyncSaved] = useState<SyncSettings | null>(null);
 
   const [newToken, setNewToken] = useState("");
   const [testTo, setTestTo] = useState("");
@@ -165,6 +179,9 @@ const Settings = () => {
     setDatabaseSaved({ ...data.database, password: "" });
     setMail({ ...data.mail, password: "" });
     setMailSaved({ ...data.mail, password: "" });
+    const syncValue = { ...data.sync, target: { ...data.sync.target, password: "" } };
+    setSync(syncValue);
+    setSyncSaved(syncValue);
   }, [settings.data]);
 
   const dirty = {
@@ -172,6 +189,7 @@ const Settings = () => {
     rotation: !same(rotation, rotationSaved) || timezone !== timezoneSaved,
     database: !same(database, databaseSaved),
     mail: !same(mail, mailSaved),
+    sync: !same(sync, syncSaved),
   };
 
   const failed = useCallback(
@@ -279,6 +297,32 @@ const Settings = () => {
     );
   };
 
+  const saveSync = () => {
+    if (!sync) return;
+    const payload = { ...sync, target: { ...sync.target } };
+    // Leeg wachtwoordveld betekent: laat het opgeslagen wachtwoord staan.
+    if (!payload.target.password) delete payload.target.password;
+    save.mutate(
+      { sync: payload },
+      {
+        onSuccess: () => {
+          setSyncSaved(sync);
+          saved();
+        },
+        onError: failed,
+      }
+    );
+  };
+
+  const pushNow = () =>
+    runSync.mutate(undefined, {
+      onSuccess: (result) =>
+        result.row
+          ? notify.success(t("sync_done", { name: result.row.name, phone: result.row.phone }))
+          : notify.message(t("sync_nobody")),
+      onError: failed,
+    });
+
   /** Token wijzigen, of met een lege waarde de beveiliging uitzetten. */
   const applyToken = (value: string) =>
     save.mutate(
@@ -347,11 +391,12 @@ const Settings = () => {
       { id: "rotation", label: t("section_rotation"), dirty: dirty.rotation },
       { id: "database", label: t("section_database"), dirty: dirty.database },
       { id: "mail", label: t("section_mail"), dirty: dirty.mail },
+      { id: "sync", label: t("section_sync"), dirty: dirty.sync },
       { id: "security", label: t("section_security") },
       { id: "backup", label: t("section_backup") },
       { id: "reset", label: t("section_danger") },
     ],
-    [t, dirty.roster, dirty.rotation, dirty.database, dirty.mail]
+    [t, dirty.roster, dirty.rotation, dirty.database, dirty.mail, dirty.sync]
   );
 
   const ready = Boolean(settings.data);
@@ -368,6 +413,7 @@ const Settings = () => {
         "rotation",
         "database",
         "mail",
+        "sync",
         "security",
         "backup",
         "reset",
@@ -954,6 +1000,55 @@ const Settings = () => {
                   </Button>
                 </div>
               </fieldset>
+            </>
+          )}
+        </Section>
+
+        {/* Koppeling met het telefoniesysteem */}
+        <Section
+          id="sync"
+          icon={<ArrowRightLeft className="h-4 w-4 text-muted-foreground" />}
+          title={t("section_sync")}
+          description={t("sync_help")}
+          dirty={dirty.sync}
+          footer={
+            <>
+              {saveButton(saveSync, dirty.sync)}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={pushNow}
+                disabled={runSync.isPending || !sync?.enabled || dirty.sync}
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                {t("sync_run")}
+              </Button>
+            </>
+          }
+        >
+          {sync && (
+            <>
+              <CheckboxField
+                label={t("sync_enable")}
+                checked={sync.enabled}
+                onChange={(e) => setSync({ ...sync, enabled: e.target.checked })}
+              />
+
+              {sync.enabled && (
+                <>
+                  <DatabaseFields
+                    value={sync.target}
+                    onChange={(target) => setSync({ ...sync, target })}
+                    showIntro={false}
+                    idPrefix="sync-db"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {settings.data?.sync.lastSyncedAt
+                      ? new Date(settings.data.sync.lastSyncedAt).toLocaleString()
+                      : t("sync_never")}
+                  </p>
+                </>
+              )}
             </>
           )}
         </Section>

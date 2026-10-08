@@ -7,6 +7,7 @@ import { config, type RosterPerson } from "./config";
 import { reopenDb, testConnection } from "./db/index";
 import type { DbConfig, DbDriverName } from "./db/types";
 import { sendDueNotifications, sendMail, verifyMail, buildMessage, fillTemplate } from "./mail";
+import { readSyncedRow, syncCurrent } from "./sync";
 import { isValidTimezone, serverTimezone } from "./timezone";
 import {
   DEFAULT_MAIL,
@@ -20,6 +21,7 @@ import {
   getRoster,
   getRotation,
   getSettings,
+  getSync,
   isConfigured,
   isDbFromEnv,
   loadSettings,
@@ -28,6 +30,7 @@ import {
   type MailSettings,
   type RotationSettings,
   type Settings,
+  type SyncSettings,
 } from "./settings";
 import {
   deleteAllAssignments,
@@ -173,6 +176,32 @@ function parseMail(input: unknown, fallback: MailSettings): MailSettings {
   return next;
 }
 
+function parseSync(input: unknown, fallback: SyncSettings): SyncSettings {
+  const raw = (input ?? {}) as Record<string, unknown>;
+  const enabled = raw.enabled === undefined ? fallback.enabled : Boolean(raw.enabled);
+  const target = parseDatabase(raw.target, fallback.target);
+
+  if (enabled && target.driver === "sqlite" && !target.file) {
+    fail("Vul het databasebestand van de koppeling in");
+  }
+
+  // Wijst de koppeling naar een andere tabel of database, dan is de rij die we
+  // daar beheerden niet meer van ons.
+  const sameTarget =
+    target.driver === fallback.target.driver &&
+    target.table === fallback.target.table &&
+    target.database === fallback.target.database &&
+    target.host === fallback.target.host &&
+    target.file === fallback.target.file;
+
+  return {
+    enabled,
+    target,
+    rowId: sameTarget ? fallback.rowId : null,
+    lastSyncedAt: sameTarget ? fallback.lastSyncedAt : undefined,
+  };
+}
+
 function parseTimezone(input: unknown): string {
   const zone = String(input ?? "").trim();
   if (!isValidTimezone(zone)) fail(`Onbekende tijdzone: ${zone}`);
@@ -183,6 +212,7 @@ function parseTimezone(input: unknown): string {
 function publicSettings(settings: Settings) {
   const { password: dbPassword, ...database } = settings.database;
   const { password: mailPassword, ...mail } = settings.mail;
+  const { password: syncPassword, ...syncTarget } = settings.sync.target;
   return {
     roster: settings.roster,
     rotation: settings.rotation,
@@ -193,6 +223,10 @@ function publicSettings(settings: Settings) {
     timezoneFromEnv: isTimezoneFromEnv(),
     database: { ...database, passwordSet: Boolean(dbPassword) },
     mail: { ...mail, passwordSet: Boolean(mailPassword) },
+    sync: {
+      ...settings.sync,
+      target: { ...syncTarget, passwordSet: Boolean(syncPassword) },
+    },
     adminTokenSet: Boolean(settings.adminToken),
     dbFromEnv: isDbFromEnv(),
     // false = opgeslagen in de database, true = teruggevallen op het bestand.
@@ -261,6 +295,11 @@ export function createApiRouter(): express.Router {
 
       const ok = await updateAssignment(id, name, phone);
       if (!ok) return res.status(404).json({ error: "Week niet gevonden" });
+
+      // Raakt dit de week die nu loopt, dan moet het telefoniesysteem het
+      // meteen weten in plaats van bij de volgende controle.
+      syncCurrent().catch((err) => console.error("[sync] mislukt:", (err as Error).message));
+
       res.json(await getById(id));
     } catch (err) {
       console.error(err);
@@ -352,6 +391,16 @@ export function createApiRouter(): express.Router {
         patch.rotation = parseRotation(body.rotation, current.rotation);
       }
       if (body.mail !== undefined) patch.mail = parseMail(body.mail, current.mail);
+      if (body.sync !== undefined) {
+        const sync = parseSync(body.sync, current.sync);
+        if (sync.enabled) {
+          // Niet opslaan wat niet werkt: eerst kijken of de doeltabel klopt.
+          await testConnection(sync.target).catch((err) => {
+            fail(`Verbinden met het telefoniesysteem mislukt: ${(err as Error).message}`);
+          });
+        }
+        patch.sync = sync;
+      }
       if (body.timezone !== undefined) {
         if (isTimezoneFromEnv()) {
           fail("De tijdzone staat vast via environment variables (ROTACALL_TIMEZONE)");
@@ -455,6 +504,25 @@ export function createApiRouter(): express.Router {
         // Handig in de UI: wie zou er nu bericht krijgen?
         recipient: current ? (buildMessage(current, mail)?.to ?? null) : null,
       });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  // Nu doorzetten naar het telefoniesysteem, en teruglezen wat er staat.
+  api.post("/settings/sync/run", requireAdmin, async (_req, res) => {
+    try {
+      const result = await syncCurrent();
+      const row = await readSyncedRow().catch(() => null);
+      res.json({ ok: true, ...result, row });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  api.get("/settings/sync/row", requireAdmin, async (_req, res) => {
+    try {
+      res.json({ ok: true, row: await readSyncedRow(), sync: getSync().lastSyncedAt ?? null });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
     }
@@ -591,6 +659,9 @@ export async function startScheduler(): Promise<() => void> {
 
   const mailer = cron.schedule(config.mailCheckSchedule, () => {
     sendDueNotifications().catch((err) => console.error("[mail] controle mislukt:", err));
+    // Zelfde ritme: na een wissel of een handmatige wijziging staat het juiste
+    // nummer binnen enkele minuten in het telefoniesysteem.
+    syncCurrent().catch((err) => console.error("[sync] mislukt:", (err as Error).message));
   });
 
   return () => {

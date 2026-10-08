@@ -170,6 +170,28 @@ Daylight saving is handled, including the weekend of a switch.
 
 `ROTACALL_TIMEZONE` fixes it from the outside; it is then read-only in the UI.
 
+## Feeding the phone system
+
+You can keep the schedule in SQLite and still have the phone system follow it.
+Under **Settings -> Phone system**, point the app at the table your PBX reads
+(MySQL/MariaDB, PostgreSQL or SQLite) and it writes the week that applies right
+now into a single row there: name, number, start and end.
+
+- It manages one row and remembers its id. Other rows in that table are never
+  touched, and the app never issues `DELETE` or `ALTER`.
+- If that row disappears, the next push recreates it.
+- If nobody is on call, the last row stays: an outdated number beats an empty one.
+- Pushing happens every few minutes, right after a change on the admin page, and
+  on demand with the button.
+
+This works when the phone system reads that table itself, for instance through a
+lookup in a call flow. Writing into 3CX's own configuration tables does not work
+reliably: 3CX does not re-read its configuration from the database, and an
+update can change the schema underneath you.
+
+Want nothing extra in that database? Set `SETTINGS_IN_FILE=true` and the app
+keeps its own settings in `data/setup.json` instead of in a table.
+
 ## Where settings are stored
 
 The roster, rotation, email settings, time zone and admin token live **in the
@@ -224,6 +246,7 @@ npm run server:migrate   # copy MySQL/PostgreSQL rows into the SQLite file
 | `DB_DRIVER` | `sqlite` | `sqlite` (built-in file), `mysql` or `postgres` |
 | `SQLITE_FILE` | `./data/rotacall.db` | SQLite database file (driver `sqlite`) |
 | `SETTINGS_TABLE` | `rotacall_settings` | Table holding roster, rotation, mail, time zone and admin token |
+| `SETTINGS_IN_FILE` | `false` | Keep settings in the file instead of a table (for shared databases) |
 | `SETUP_FILE` | `./data/setup.json` | Where the database connection details are stored |
 | `MAIL_STATE_FILE` | `./data/mail-state.json` | Which notifications were already sent |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | — | Database connection (driver `mysql` / `postgres`) |

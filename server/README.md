@@ -70,6 +70,26 @@ voor de herinneringsmail en het agendabestand. Zomertijd gaat automatisch goed.
 Instelbaar in de setup-/instellingenpagina; leeg = de zone van de server.
 `ROTACALL_TIMEZONE` zet hem vast.
 
+## Koppeling met het telefoniesysteem
+
+`sync.ts` zet de week die op dit moment geldt door naar de tabel die het
+telefoniesysteem uitleest. De eigen database houdt de volledige planning bij;
+daar wordt niets van verplaatst.
+
+In die doeltabel beheert de app precies één rij: het id daarvan staat in de
+instellingen. Bij elke keer bijwerken gaat die rij mee; is hij daar verwijderd,
+dan wordt hij opnieuw aangemaakt. Andere rijen blijven onaangeroerd, en er
+wordt nooit `DELETE` of `ALTER` gedaan. Staat er niemand ingepland, dan blijft
+de laatste rij staan: een leeg doorschakelnummer is erger dan een verouderd.
+
+Doorzetten gebeurt bij elke controle (`MAIL_CHECK_SCHEDULE`, standaard elke vijf
+minuten), meteen na een wijziging op de adminpagina, en met de knop in de
+instellingen.
+
+Let op: dit werkt alleen als het telefoniesysteem die tabel zelf uitleest
+(bijvoorbeeld met een lookup in de call flow). In de eigen systeemtabellen van
+3CX schrijven heeft geen zin, want die configuratie wordt niet live herlezen.
+
 ## E-mail
 
 `mail.ts` verstuurt via nodemailer een bericht aan de persoon die dienst heeft

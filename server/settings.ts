@@ -65,8 +65,24 @@ export interface MailSettings {
   body: string;
 }
 
+/**
+ * Koppeling met het telefoniesysteem: de eigen database houdt de hele planning
+ * bij, en hiermee wordt de week die nu geldt doorgezet naar de tabel die het
+ * telefoniesysteem uitleest.
+ */
+export interface SyncSettings {
+  enabled: boolean;
+  /** Waar het actuele nummer naartoe gaat. */
+  target: DbConfig;
+  /** Rij die de app daar beheert; de rest van de tabel blijft onaangeraakt. */
+  rowId: number | null;
+  /** Wanneer het voor het laatst gelukt is. */
+  lastSyncedAt?: string;
+}
+
 export interface Settings {
   roster: RosterPerson[];
+  sync: SyncSettings;
   /** IANA-naam, bv. "Europe/Amsterdam". Leeg = de tijdzone van de server. */
   timezone: string;
   rotation: RotationSettings;
@@ -150,7 +166,15 @@ function readStored(): StoredSettings | null {
 }
 
 /** Onderdelen die in de database horen (de rest blijft in het bestand). */
-const DB_KEYS = ["roster", "rotation", "mail", "timezone", "adminToken", "savedAt"] as const;
+const DB_KEYS = [
+  "roster",
+  "rotation",
+  "mail",
+  "timezone",
+  "adminToken",
+  "sync",
+  "savedAt",
+] as const;
 
 function pickDbKeys(source: StoredSettings): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -300,6 +324,32 @@ export function isTimezoneFromEnv(): boolean {
   return envText("ROTACALL_TIMEZONE") !== undefined;
 }
 
+export const DEFAULT_SYNC: SyncSettings = {
+  enabled: false,
+  rowId: null,
+  target: {
+    driver: "mysql",
+    file: "",
+    url: "",
+    host: "",
+    port: 3306,
+    user: "",
+    password: "",
+    database: "",
+    table: "period_config",
+  },
+};
+
+/** Instellingen van de koppeling met het telefoniesysteem. */
+export function getSync(): SyncSettings {
+  const saved = readStored()?.sync;
+  return {
+    ...DEFAULT_SYNC,
+    ...saved,
+    target: { ...DEFAULT_SYNC.target, ...saved?.target },
+  };
+}
+
 export function getAdminToken(): string {
   return config.adminToken || readStored()?.adminToken || "";
 }
@@ -320,6 +370,7 @@ export function isConfigured(): boolean {
 export function getSettings(): Settings {
   return {
     roster: getRoster(),
+    sync: getSync(),
     timezone: getTimezoneSetting(),
     rotation: getRotation(),
     database: getDbConfig(),

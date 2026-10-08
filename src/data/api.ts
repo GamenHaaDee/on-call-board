@@ -125,8 +125,16 @@ export interface RotationSettings {
   weeksAhead: number;
 }
 
+export interface SyncSettings {
+  enabled: boolean;
+  target: DatabaseSettings;
+  rowId: number | null;
+  lastSyncedAt?: string;
+}
+
 export interface AppSettings {
   roster: RosterPerson[];
+  sync: SyncSettings;
   rotation: RotationSettings;
   /** Lege waarde = de tijdzone van de server volgen. */
   timezone: string;
@@ -271,6 +279,7 @@ export function useSettings(enabled = true) {
 
 export interface SettingsPatch {
   roster?: RosterPerson[];
+  sync?: SyncSettings;
   rotation?: RotationSettings;
   timezone?: string;
   database?: DatabaseSettings;
@@ -335,6 +344,19 @@ export function useResetApp() {
     onSuccess: () => {
       qc.clear();
     },
+  });
+}
+
+/** Het actuele nummer nu naar het telefoniesysteem schrijven. */
+export function useRunSync() {
+  return useMutation({
+    mutationFn: () =>
+      sendJson<{
+        ok: true;
+        action: string;
+        rowId: number | null;
+        row: { name: string; phone: string } | null;
+      }>("/api/settings/sync/run", "POST", {}),
   });
 }
 
