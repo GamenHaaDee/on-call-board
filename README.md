@@ -192,6 +192,32 @@ update can change the schema underneath you.
 Want nothing extra in that database? Set `SETTINGS_IN_FILE=true` and the app
 keeps its own settings in `data/setup.json` instead of in a table.
 
+## Alerting: Zabbix
+
+Zabbix sends its alerts to a *user*, not to a phone number, so the rotation has
+to happen there too. Under **Settings -> Zabbix** the app keeps the SMS number
+of one fixed Zabbix user up to date.
+
+Set it up once in Zabbix:
+
+1. Create an SMS media type (or use the one your gateway provides) and make
+   sure it works.
+2. Create a user, for instance `oncall`, with permission to receive the alerts
+   you care about. You do not have to give it a media yourself: the app adds
+   one for the media type you pick.
+3. Point your actions at that user (or at a user group containing it).
+4. Create an API token under **Users -> API tokens**, with a role that may edit
+   users (a Super admin role does). A username and password works too, but a
+   token does not expire when someone changes their password.
+
+Then fill in the address and the token in RotaCall, press **Test connection**
+(this loads the users and media types), pick the user and the SMS media type,
+and save. From then on the number is updated every few minutes, right after a
+change on the admin page, and on demand with the button.
+
+Other media on that user, such as its email address, are left alone, and
+nothing is ever deleted. If nobody is on call, the last number stays.
+
 ## Where settings are stored
 
 The roster, rotation, email settings, time zone and admin token live **in the

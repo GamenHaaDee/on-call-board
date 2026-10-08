@@ -90,6 +90,27 @@ Let op: dit werkt alleen als het telefoniesysteem die tabel zelf uitleest
 (bijvoorbeeld met een lookup in de call flow). In de eigen systeemtabellen van
 3CX schrijven heeft geen zin, want die configuratie wordt niet live herlezen.
 
+## Koppeling met Zabbix
+
+`zabbix.ts` praat met de JSON-RPC-API (`api_jsonrpc.php`). Zabbix meldt aan een
+gebruiker, dus de rotatie zit hem daar in het nummer: bij elke doorzetting
+wordt de sms-media van één vaste gebruiker bijgewerkt met het nummer van wie
+dienst heeft.
+
+Werkwijze: `user.get` met `selectMedias`, de media van het gekozen media-type
+krijgen het nieuwe nummer, en de hele lijst gaat terug met `user.update`. De
+overige media van die gebruiker (bijvoorbeeld e-mail) blijven daarbij staan.
+Bestaat er nog geen media van dat type, dan wordt er één aangemaakt. Staat het
+juiste nummer er al, dan wordt er niets verstuurd.
+
+Versieverschillen worden opgevangen aan de hand van `apiinfo.version`: vanaf 6.4
+gaat het token in de `Authorization`-header en daarvoor in het verzoek zelf,
+`username` heet vóór 5.4 nog `alias`, en de media-lijst heet vóór 5.2
+`user_medias`. Aanmelden kan met een API-token of met gebruikersnaam en
+wachtwoord; in dat laatste geval wordt er na afloop weer uitgelogd.
+
+Het token heeft een rol nodig die gebruikers mag bewerken.
+
 ## E-mail
 
 `mail.ts` verstuurt via nodemailer een bericht aan de persoon die dienst heeft

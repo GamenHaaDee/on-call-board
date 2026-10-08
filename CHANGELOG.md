@@ -1,5 +1,24 @@
 # Changelog
 
+## Nog niet uitgebracht
+
+### Koppeling met Zabbix
+
+- Zabbix meldt aan één vaste gebruiker; die gebruiker krijgt elke rotatie het
+  mobiele nummer van wie dienst heeft in zijn sms-media. De acties in Zabbix
+  blijven zoals ze zijn.
+- Instellen onder **Instellingen → Zabbix**: adres, API-token (of gebruikersnaam
+  en wachtwoord), en daarna de gebruiker en het media-type kiezen uit lijsten
+  die uit Zabbix zelf komen.
+- De overige media van die gebruiker, zoals het e-mailadres, blijven staan. Er
+  wordt nooit iets verwijderd, en staat het juiste nummer er al, dan gaat er
+  niets naar Zabbix.
+- Bijwerken gebeurt elke paar minuten, meteen na een wijziging op de
+  adminpagina, en met de knop in de instellingen.
+- Werkt met Zabbix 5.0 tot en met 7.x: of het token in de header hoort, hoe het
+  gebruikersveld heet en hoe de media-lijst heet, wordt bepaald aan de hand van
+  de versie die Zabbix zelf teruggeeft.
+
 ## 1.1.0 — 8 oktober 2026
 
 Van een webpagina met een losse MySQL-server naar één programma dat je start en
