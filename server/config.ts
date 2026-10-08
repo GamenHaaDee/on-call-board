@@ -125,6 +125,11 @@ export const config = {
   // Tabel waarin rooster, rotatie, mail en tijdzone worden bewaard.
   settingsTable: envText("SETTINGS_TABLE") ?? "rotacall_settings",
 
+  // Zet dit aan om die tabel niet aan te maken en de instellingen in het
+  // bestand te houden. Bedoeld voor een gedeelde database (bijvoorbeeld die
+  // van het telefoonsysteem) waar je niets extra's in wilt zetten.
+  settingsInFile: envBool("SETTINGS_IN_FILE") ?? false,
+
   // Hier staan de verbindingsgegevens van de database (en, zolang de database
   // niet bruikbaar is, de overige instellingen).
   setupFile: path.resolve(envText("SETUP_FILE") ?? path.join(process.cwd(), "data", "setup.json")),

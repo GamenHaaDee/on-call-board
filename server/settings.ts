@@ -110,7 +110,12 @@ export const DEFAULT_MAIL: MailSettings = {
 let cached: StoredSettings | null | undefined;
 
 /** Staat van de laatste laadpoging uit de database. */
-let dbState: { loaded: boolean; error: string | null; fromFile: boolean } = {
+let dbState: {
+  loaded: boolean;
+  /** Gevuld als de database niet bruikbaar was; null bij een bewuste keuze. */
+  error: string | null;
+  fromFile: boolean;
+} = {
   loaded: false,
   error: null,
   fromFile: false,
@@ -163,6 +168,14 @@ function pickDbKeys(source: StoredSettings): Record<string, unknown> {
  */
 export async function loadSettings(): Promise<void> {
   const file = readFile() ?? {};
+
+  if (config.settingsInFile) {
+    // Bewuste keuze: niets in de database, alles in het bestand.
+    cached = file;
+    dbState = { loaded: true, error: null, fromFile: true };
+    console.log(`[settings] Instellingen uit ${config.setupFile} (SETTINGS_IN_FILE).`);
+    return;
+  }
 
   try {
     const stored = (await readSettingsTable(config.settingsTable)) ?? {};

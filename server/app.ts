@@ -51,7 +51,7 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
     return res.status(503).json({ error: "Instellingen zijn nog niet geladen" });
   }
   const token = getAdminToken();
-  if (status.fromFile && !token) {
+  if (status.error && !token) {
     return res.status(503).json({
       error:
         "De instellingen konden niet uit de database gelezen worden, dus het " +
