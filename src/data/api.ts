@@ -132,9 +132,32 @@ export interface SyncSettings {
   lastSyncedAt?: string;
 }
 
+export interface ZabbixSettings {
+  enabled: boolean;
+  url: string;
+  token?: string;
+  user: string;
+  password?: string;
+  /** De Zabbix-gebruiker waarvan de sms-media wordt bijgewerkt. */
+  userId: string;
+  mediaTypeId: string;
+  lastSyncedAt?: string;
+  lastValue?: string;
+  passwordSet?: boolean;
+  tokenSet?: boolean;
+}
+
+/** Keuzelijsten die bij het testen uit Zabbix komen. */
+export interface ZabbixInfo {
+  version: string;
+  users: { userid: string; username: string; name?: string; surname?: string }[];
+  mediaTypes: { mediatypeid: string; name: string; type: string }[];
+}
+
 export interface AppSettings {
   roster: RosterPerson[];
   sync: SyncSettings;
+  zabbix: ZabbixSettings;
   rotation: RotationSettings;
   /** Lege waarde = de tijdzone van de server volgen. */
   timezone: string;
@@ -280,6 +303,7 @@ export function useSettings(enabled = true) {
 export interface SettingsPatch {
   roster?: RosterPerson[];
   sync?: SyncSettings;
+  zabbix?: ZabbixSettings;
   rotation?: RotationSettings;
   timezone?: string;
   database?: DatabaseSettings;
@@ -357,6 +381,26 @@ export function useRunSync() {
         rowId: number | null;
         row: { name: string; phone: string } | null;
       }>("/api/settings/sync/run", "POST", {}),
+  });
+}
+
+/** Verbinding met Zabbix proberen en de keuzelijsten ophalen. */
+export function useTestZabbix() {
+  return useMutation({
+    mutationFn: (zabbix: ZabbixSettings) =>
+      sendJson<{ ok: true } & ZabbixInfo>("/api/settings/zabbix/test", "POST", zabbix),
+  });
+}
+
+/** Het actuele nummer nu in Zabbix zetten. */
+export function useRunZabbix() {
+  return useMutation({
+    mutationFn: () =>
+      sendJson<{ ok: true; action: string; sendto: string | null }>(
+        "/api/settings/zabbix/run",
+        "POST",
+        {}
+      ),
   });
 }
 

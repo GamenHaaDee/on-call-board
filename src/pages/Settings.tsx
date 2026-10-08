@@ -14,6 +14,7 @@ import {
   Save,
   Send,
   ShieldCheck,
+  Siren,
   Trash2,
   Users,
   WifiOff,
@@ -27,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckboxField } from "@/components/ui/checkbox-field";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import DatabaseFields from "@/components/DatabaseFields";
+import ZabbixFields from "@/components/ZabbixFields";
 import TimezoneSelect from "@/components/TimezoneSelect";
 import {
   ApiError,
@@ -36,6 +38,7 @@ import {
   useResetApp,
   useRunMail,
   useRunSync,
+  useRunZabbix,
   useSaveSettings,
   useSettings,
   useTestMail,
@@ -44,6 +47,7 @@ import {
   type RosterPerson,
   type RotationSettings,
   type SyncSettings,
+  type ZabbixSettings,
 } from "@/data/api";
 
 const toTimeInput = (value: string) => value.slice(0, 5);
@@ -58,6 +62,7 @@ type SectionId =
   | "database"
   | "mail"
   | "sync"
+  | "zabbix"
   | "security"
   | "backup"
   | "reset";
@@ -138,6 +143,7 @@ const Settings = () => {
   const testMail = useTestMail();
   const runMail = useRunMail();
   const runSync = useRunSync();
+  const runZabbix = useRunZabbix();
   const exportBackup = useExportBackup();
   const resetApp = useResetApp();
 
@@ -157,6 +163,8 @@ const Settings = () => {
   const [mailSaved, setMailSaved] = useState<MailSettings | null>(null);
   const [sync, setSync] = useState<SyncSettings | null>(null);
   const [syncSaved, setSyncSaved] = useState<SyncSettings | null>(null);
+  const [zabbix, setZabbix] = useState<ZabbixSettings | null>(null);
+  const [zabbixSaved, setZabbixSaved] = useState<ZabbixSettings | null>(null);
 
   const [newToken, setNewToken] = useState("");
   const [testTo, setTestTo] = useState("");
@@ -182,6 +190,9 @@ const Settings = () => {
     const syncValue = { ...data.sync, target: { ...data.sync.target, password: "" } };
     setSync(syncValue);
     setSyncSaved(syncValue);
+    const zabbixValue = { ...data.zabbix, token: "", password: "" };
+    setZabbix(zabbixValue);
+    setZabbixSaved(zabbixValue);
   }, [settings.data]);
 
   const dirty = {
@@ -190,6 +201,7 @@ const Settings = () => {
     database: !same(database, databaseSaved),
     mail: !same(mail, mailSaved),
     sync: !same(sync, syncSaved),
+    zabbix: !same(zabbix, zabbixSaved),
   };
 
   const failed = useCallback(
@@ -314,6 +326,33 @@ const Settings = () => {
     );
   };
 
+  const saveZabbix = () => {
+    if (!zabbix) return;
+    const payload = { ...zabbix };
+    // Lege geheimen betekenen: laat staan wat er is opgeslagen.
+    if (!payload.token) delete payload.token;
+    if (!payload.password) delete payload.password;
+    save.mutate(
+      { zabbix: payload },
+      {
+        onSuccess: () => {
+          setZabbixSaved(zabbix);
+          saved();
+        },
+        onError: failed,
+      }
+    );
+  };
+
+  const pushZabbix = () =>
+    runZabbix.mutate(undefined, {
+      onSuccess: (result) =>
+        result.sendto
+          ? notify.success(t("zbx_done", { phone: result.sendto }))
+          : notify.message(t("zbx_nobody")),
+      onError: failed,
+    });
+
   const pushNow = () =>
     runSync.mutate(undefined, {
       onSuccess: (result) =>
@@ -392,11 +431,12 @@ const Settings = () => {
       { id: "database", label: t("section_database"), dirty: dirty.database },
       { id: "mail", label: t("section_mail"), dirty: dirty.mail },
       { id: "sync", label: t("section_sync"), dirty: dirty.sync },
+      { id: "zabbix", label: t("section_zabbix"), dirty: dirty.zabbix },
       { id: "security", label: t("section_security") },
       { id: "backup", label: t("section_backup") },
       { id: "reset", label: t("section_danger") },
     ],
-    [t, dirty.roster, dirty.rotation, dirty.database, dirty.mail, dirty.sync]
+    [t, dirty.roster, dirty.rotation, dirty.database, dirty.mail, dirty.sync, dirty.zabbix]
   );
 
   const ready = Boolean(settings.data);
@@ -414,6 +454,7 @@ const Settings = () => {
         "database",
         "mail",
         "sync",
+        "zabbix",
         "security",
         "backup",
         "reset",
@@ -1046,6 +1087,53 @@ const Settings = () => {
                     {settings.data?.sync.lastSyncedAt
                       ? new Date(settings.data.sync.lastSyncedAt).toLocaleString()
                       : t("sync_never")}
+                  </p>
+                </>
+              )}
+            </>
+          )}
+        </Section>
+
+        {/* Zabbix */}
+        <Section
+          id="zabbix"
+          icon={<Siren className="h-4 w-4 text-muted-foreground" />}
+          title={t("section_zabbix")}
+          description={t("zbx_help")}
+          dirty={dirty.zabbix}
+          footer={
+            <>
+              {saveButton(saveZabbix, dirty.zabbix)}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={pushZabbix}
+                disabled={runZabbix.isPending || !zabbix?.enabled || dirty.zabbix}
+              >
+                <Siren className="mr-2 h-4 w-4" />
+                {t("zbx_run")}
+              </Button>
+            </>
+          }
+        >
+          {zabbix && (
+            <>
+              <CheckboxField
+                label={t("zbx_enable")}
+                checked={zabbix.enabled}
+                onChange={(e) => setZabbix({ ...zabbix, enabled: e.target.checked })}
+              />
+
+              {zabbix.enabled && (
+                <>
+                  <ZabbixFields value={zabbix} onChange={setZabbix} />
+                  <p className="text-xs text-muted-foreground">
+                    {settings.data?.zabbix.lastSyncedAt
+                      ? t("zbx_current", {
+                          phone: settings.data.zabbix.lastValue ?? "?",
+                          when: new Date(settings.data.zabbix.lastSyncedAt).toLocaleString(),
+                        })
+                      : t("zbx_never")}
                   </p>
                 </>
               )}
