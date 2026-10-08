@@ -1,5 +1,6 @@
-import mysql from "mysql2/promise";
+import mysql, { type RowDataPacket } from "mysql2/promise";
 import { quoteBacktick } from "./identifier";
+import { assertColumns } from "./columns";
 import type { DbConfig, DbDriver, RunResult } from "./types";
 
 type MysqlParam = string | number | boolean | Date | null;
@@ -33,9 +34,18 @@ export function createMysqlDriver(dbConfig: DbConfig): DbDriver {
     },
 
     async init() {
-      // De tabel bestaat al (3CX gebruikt hem); alleen controleren of hij
-      // bereikbaar is, zodat een verkeerde naam meteen opvalt.
-      await pool.query(`SELECT 1 FROM ${quoteBacktick(dbConfig.table)} LIMIT 1`);
+      // De tabel wordt hier nooit aangemaakt of gewijzigd: hij is van het
+      // telefoonsysteem. Wel controleren of hij bestaat en de juiste kolommen
+      // heeft, zodat een verkeerde naam meteen opvalt in plaats van bij de
+      // eerste schrijfactie.
+      const [rows] = await pool.query<RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+        [dbConfig.database, dbConfig.table]
+      );
+
+      assertColumns(dbConfig.table, rows.map((r) => String(r.COLUMN_NAME)));
+
       console.log(`[db] MySQL: ${dbConfig.database}@${dbConfig.host}`);
     },
 

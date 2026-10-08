@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { quoteBacktick } from "./identifier";
+import { assertColumns } from "./columns";
 import type { DbConfig, DbDriver, RunResult } from "./types";
 
 // Minimale vorm van wat we van node:sqlite gebruiken (de types zitten niet in
@@ -84,10 +85,19 @@ export function createSqliteDriver(dbConfig: DbConfig): DbDriver {
            pc_telnum      TEXT    NOT NULL
          )`
       );
+      // Eerst kijken of de kolommen kloppen: bestond de tabel al met een
+      // andere indeling, dan hoort daar een leesbare melding bij en niet een
+      // fout over een ontbrekende kolom in de index hieronder.
+      const info = db.prepare(`PRAGMA table_info(${quoteBacktick(dbConfig.table)})`).all() as {
+        name: string;
+      }[];
+      assertColumns(dbConfig.table, info.map((c) => c.name));
+
       db.exec(
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_${dbConfig.table}_startterm
            ON ${quoteBacktick(dbConfig.table)} (pc_startterm)`
       );
+
       console.log(`[db] SQLite: ${dbConfig.file}`);
     },
 
